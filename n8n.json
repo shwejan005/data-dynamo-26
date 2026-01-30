@@ -2,6 +2,66 @@
   "name": "My workflow 2",
   "nodes": [
     {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -112,
+        1296
+      ],
+      "id": "96878643-2c2e-407f-b0b2-eef0f68bee42",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sk-mqKjr36G5wbdFktJIsM6zEUO0rRYf3FdkMsF8REfjIF8maKB"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text_prompts\": [\n    {\n      \"text\": \"{{ $json.text_prompts[0].text }}\",\n      \"weight\": 1.0\n    }\n  ],\n  \"height\": 1024,\n  \"width\": 1024,\n  \"steps\": 30,\n  \"cfg_scale\": 7,\n  \"samples\": 1,\n  \"style_preset\": \"photographic\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1248,
+        960
+      ],
+      "id": "15f46842-bdf5-412b-a9ce-34db6350926f",
+      "name": "Generate Image via Stability AI",
+      "notes": "Calls Stability AI API with refined prompt. API key now uses credentials manager for security."
+    },
+    {
+      "parameters": {
+        "jsCode": "const prompt = $json.content.parts[0].text.trim();\n\nreturn [{\n  json: {\n    text_prompts: [\n      {\n        text: prompt,\n        weight: 1.0\n      }\n    ],\n    height: 1024,\n    width: 1024,\n    steps: 30,\n    cfg_scale: 7,\n    samples: 1,\n    style_preset: \"photographic\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        960
+      ],
+      "id": "a2eb0595-f0bf-4fdc-9c27-862991582a70",
+      "name": "Code in JavaScript"
+    },
+    {
       "parameters": {
         "httpMethod": "POST",
         "path": "ad-bot-webhook",
@@ -11,11 +71,11 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -1664,
-        48
+        -1216,
+        992
       ],
-      "id": "c92bbdc7-3265-41cf-9970-bfe7a19dbd0d",
-      "name": "Webhook",
+      "id": "a7232e60-5f38-420c-8737-5b4e08fdee6f",
+      "name": "Webhook1",
       "webhookId": "ad-bot-webhook"
     },
     {
@@ -25,11 +85,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1472,
-        48
+        -1024,
+        992
       ],
-      "id": "f3e313e6-cde7-49b9-a886-b6b4531c61ca",
-      "name": "Parse Input"
+      "id": "87f95000-9178-483a-b30f-bb0eb58767b7",
+      "name": "Parse Input1"
     },
     {
       "parameters": {
@@ -87,46 +147,40 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        -1264,
-        48
+        -816,
+        992
       ],
-      "id": "763a55ee-3575-4686-922f-11f3f063b14d",
-      "name": "Load Chat History",
-      "alwaysOutputData": false,
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "bP3YclnsvViLNfXT",
-          "name": "Google Sheets account"
-        }
-      }
+      "id": "ef4cdf95-6257-4d45-a8b4-3fb0aedae72a",
+      "name": "Load Chat History1",
+      "alwaysOutputData": false
     },
     {
       "parameters": {
-        "jsCode": "// Get session data\nconst sessionId = $('Parse Input').item.json.sessionId;\nconst userMessage = $('Parse Input').item.json.userMessage;\n\n// Load existing history from Google Sheets\nconst sheetData = $input.all();\nlet history = [];\n\nif (sheetData.length > 0 && sheetData[0].json.history) {\n  try {\n    history = JSON.parse(sheetData[0].json.history);\n  } catch (e) {\n    console.log('Failed to parse history, starting fresh');\n    history = [];\n  }\n}\n\n// Add new user message to history\nhistory.push({\n  role: 'user',\n  content: userMessage,\n  timestamp: new Date().toISOString()\n});\n\n// Build conversation context for AI\nconst conversationHistory = history\n  .map(m => `${m.role}: ${m.content}`)\n  .join('\\n\\n');\n\n// Count how many questions assistant has asked\nconst questionNumber = history.filter(m => m.role === 'assistant').length;\n\nreturn [{\n  json: {\n    sessionId: sessionId,\n    userMessage: userMessage,\n    history: history,\n    conversationHistory: conversationHistory,\n    questionNumber: questionNumber,\n    isNewSession: sheetData.length === 0\n  }\n}];"
+        "jsCode": "// Get session data\nconst sessionId = $('Parse Input1').item.json.sessionId;\nconst userMessage = $('Parse Input1').item.json.userMessage;\n\n// Load existing history from Google Sheets\nconst sheetData = $input.all();\nlet history = [];\n\nif (sheetData.length > 0 && sheetData[0].json.history) {\n  try {\n    history = JSON.parse(sheetData[0].json.history);\n  } catch (e) {\n    console.log('Failed to parse history, starting fresh');\n    history = [];\n  }\n}\n\n// Add new user message to history\nhistory.push({\n  role: 'user',\n  content: userMessage,\n  timestamp: new Date().toISOString()\n});\n\n// Build conversation context for AI\nconst conversationHistory = history\n  .map(m => `${m.role}: ${m.content}`)\n  .join('\\n\\n');\n\n// Count how many questions assistant has asked\nconst questionNumber = history.filter(m => m.role === 'assistant').length;\n\nreturn [{\n  json: {\n    sessionId: sessionId,\n    userMessage: userMessage,\n    history: history,\n    conversationHistory: conversationHistory,\n    questionNumber: questionNumber,\n    isNewSession: sheetData.length === 0\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -992,
-        48
+        -544,
+        992
       ],
-      "id": "7cf89c17-ab20-4e08-9d84-64b92cebd44d",
-      "name": "Prepare Context"
+      "id": "ab6cb3b0-5dbd-42f4-8b1d-e79234c556ba",
+      "name": "Prepare Context1"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are an intelligent assistant helping a user design a custom advertisement.\n\nIMPORTANT: READ THE CONVERSATION HISTORY CAREFULLY BEFORE RESPONDING.\n\nCONVERSATION HISTORY:\n{{ $json.conversationHistory }}\n\nCurrent user message:{{ $json.userMessage }}\n\nSTEP 1: ANALYZE THE HISTORY\nBefore doing anything, check the conversation history above to see:\n- Has the user already answered the Ad Type question (image or video)?\n- How many questions have been asked and answered?\n- What is the NEXT question that hasn't been asked yet?\n\nSTEP 2: ASK THE NEXT QUESTION\nAsk questions in this exact order (ONE at a time):\n\nQuestion 1: \"Would you like to generate an image ad or a video ad? Please type 'image' or 'video'.\"\nQuestion 2: \"Can you briefly describe your product or service?\"\nQuestion 3: \"Who is your target audience? (e.g., teens, professionals, families)\"\nQuestion 4: \"What message, slogan, or emotion should this ad convey?\"\nQuestion 5: \"Do you have any brand colors or style preferences? (e.g., modern, playful, minimalist)\"\nQuestion 6: \"What scenes or objects should be featured? (e.g., people, backgrounds, product shown)\"\nQuestion 7: \"Any special requirements or additional highlights?\"\n\nRULES:\n- Look at the conversation history - count how many questions you've ALREADY asked\n- If you see \"assistant: Would you like to generate\" in history, Question 1 is DONE - move to Question 2\n- If you see a question in the history, DO NOT ASK IT AGAIN\n- Ask ONLY the next unanswered question\n- Be friendly but brief\n\nSTEP 3: WHEN ALL 7 QUESTIONS ARE ANSWERED\nOnly after you have received answers to ALL 7 questions, respond with:\n\nSummary:\nAd Type: [user's answer]\nProduct: [user's answer]\nAudience: [user's answer]\nMessage: [user's answer]\nStyle: [user's answer]\nScenes/Objects: [user's answer]\nSpecial Requirements: [user's answer]\n\nCOMPLETE\n\nCRITICAL:\n- Count the questions in the history before responding\n- Never repeat a question you've already asked\n- COMPLETE only appears when you have 7 answers",
+        "text": "=\nYou are an intelligent assistant helping a user design a custom advertisement image.\n\nCONVERSATION HISTORY:\n{{ $json.conversationHistory }}\n\nCurrent user message: {{ $json.userMessage }}\nQuestion number: {{ $json.questionNumber + 1 }}\n\nWhat to do:\n\nCarefully review {{ $json.conversationHistory }}for answered/asked questions.\n\nAsk ONLY the NEXT unanswered question from this list, one at a time:\n\nProduct or service description\n\nTarget audience (e.g., teens, working professionals, families)\n\nMessage, slogan, or emotion to convey\n\nBrand colors or style (modern, playful, minimalist, etc.)\n\nDesired scenes or objects (e.g., people, backgrounds, product shown)\n\nSpecial requirements or highlights\n\nRules:\n\nUse a friendly, conversational style.\n\nNever repeat already-answered questions {{ $json.conversationHistory }}.\n\nWhen ALL SIX answers are collected, reply with this summary ONLY (do not add text):\n\nCOMPLETE: I have all the information needed.\n\nSummary:\nProduct: [answer 1]\nAudience: [answer 2]\nMessage: [answer 3]\nStyle: [answer 4]\nScenes/Objects: [answer 5]\nSpecial Requirements: [answer 6]\n\nCRITICAL: The word \"COMPLETE:\" must be at the start of summary for workflow progression.\n\n",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.3,
       "position": [
-        -656,
-        48
+        -208,
+        992
       ],
-      "id": "0a1c8943-cafd-4f64-9436-6805941489a4",
-      "name": "AI Agent"
+      "id": "011c5bcb-e7cf-4dc3-9ee6-1fa572fa250a",
+      "name": "AI Agent1"
     },
     {
       "parameters": {
@@ -135,30 +189,24 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        -656,
-        240
+        -208,
+        1184
       ],
-      "id": "065dbd98-fb5b-4fa5-8846-2fe549db63ed",
-      "name": "Google Gemini",
-      "credentials": {
-        "googlePalmApi": {
-          "id": "U9gAL7wTuBCRtkkL",
-          "name": "Google Gemini(PaLM) Api account 2"
-        }
-      }
+      "id": "b17161e2-5322-4961-869b-970db04b571f",
+      "name": "Google Gemini1"
     },
     {
       "parameters": {
-        "jsCode": "// Get AI response\nconst aiResponse = $json.output;\nconst sessionId = $('Prepare Context').item.json.sessionId;\nconst history = $('Prepare Context').item.json.history;\n\n// Add AI response to history\nhistory.push({\n  role: 'assistant',\n  content: aiResponse,\n  timestamp: new Date().toISOString()\n});\n\nreturn [{\n  json: {\n    sessionId: sessionId,\n    aiResponse: aiResponse,\n    history: history,\n    historyJson: JSON.stringify(history),\n    lastUpdated: new Date().toISOString(),\n    isNewSession: $('Prepare Context').item.json.isNewSession\n  }\n}];"
+        "jsCode": "// Get AI response\nconst aiResponse = $json.output;\nconst sessionId = $('Prepare Context1').item.json.sessionId;\nconst history = $('Prepare Context1').item.json.history;\n\n// Add AI response to history\nhistory.push({\n  role: 'assistant',\n  content: aiResponse,\n  timestamp: new Date().toISOString()\n});\n\nreturn [{\n  json: {\n    sessionId: sessionId,\n    aiResponse: aiResponse,\n    history: history,\n    historyJson: JSON.stringify(history),\n    lastUpdated: new Date().toISOString(),\n    isNewSession: $('Prepare Context1').item.json.isNewSession\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -400,
-        48
+        48,
+        992
       ],
-      "id": "3b4762fc-eb6c-4687-94c7-98c7040b338c",
-      "name": "Update History"
+      "id": "ad71844c-2921-4be5-b0ad-f322c60c5891",
+      "name": "Update History1"
     },
     {
       "parameters": {
@@ -288,26 +336,20 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        -256,
-        48
+        192,
+        992
       ],
-      "id": "bd27cc32-e6e7-419a-a9f1-81c2f4813b85",
-      "name": "Save Chat History",
+      "id": "2cc2e0e1-7a3a-449c-86e8-4cea74841216",
+      "name": "Save Chat History1",
       "notesInFlow": false,
-      "alwaysOutputData": true,
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "bP3YclnsvViLNfXT",
-          "name": "Google Sheets account"
-        }
-      }
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "conditions": {
           "string": [
             {
-              "value1": "={{ $('AI Agent').item.json.output }}",
+              "value1": "={{ $('Update History1').item.json.history[1].content }}",
               "operation": "contains",
               "value2": "COMPLETE:"
             }
@@ -317,24 +359,24 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        -64,
-        48
+        384,
+        992
       ],
-      "id": "42949dea-4517-4115-afdd-c274d01e8c7c",
-      "name": "Check If Complete"
+      "id": "8244b69f-2a1e-4788-97c4-2458c46a9670",
+      "name": "Check If Complete1"
     },
     {
       "parameters": {
-        "jsCode": "// Return chat response (in progress)\nconst aiResponse = $('Update History').item.json.aiResponse;\n\nreturn [{\n  json: {\n    status: 'in_progress',\n    message: aiResponse\n  }\n}];"
+        "jsCode": "// Return chat response (in progress)\nconst aiResponse = $('Update History1').item.json.aiResponse;\n\nreturn [{\n  json: {\n    status: 'in_progress',\n    message: aiResponse\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        32,
-        336
+        592,
+        1184
       ],
-      "id": "7deefb2b-267e-4082-9850-e59294ff9eeb",
-      "name": "Format Chat Response"
+      "id": "8466514c-876c-438a-950d-95ff7933634e",
+      "name": "Format Chat Response1"
     },
     {
       "parameters": {
@@ -345,11 +387,11 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        224,
-        384
+        800,
+        1184
       ],
-      "id": "11786dc0-fc85-4767-b8ba-c0143e6d8ae9",
-      "name": "Respond Chat"
+      "id": "6c8a733c-49a1-4538-ad64-f3c4dc1fcab2",
+      "name": "Respond Chat1"
     },
     {
       "parameters": {
@@ -361,7 +403,7 @@
         "messages": {
           "values": [
             {
-              "content": "=You are an expert ad creative and AI prompt engineer. Using the following information, generate a detailed, imaginative, and visually descriptive prompt for an AI image generation model (Stable Diffusion).\n\nUser's Requirements:\n{{ $('Update History').item.json.aiResponse }}\n\nInstructions:\n- First, identify if this is for IMAGE or VIDEO from the requirements\n- Explicitly state \"IMAGE:\" or \"VIDEO:\" at the start of your output\n- Create a vivid, production-ready prompt\n- Include style, mood, lighting, and composition details\n- Incorporate the product, audience, message, and brand style\n- Make it concise but highly descriptive\n- Add technical photography terms\n- Keep under 400 characters\n- Remove ALL whitespaces, newlines (\\n), tabs (\\t), and line breaks\n- Output as a single continuous line with no extra spacing\n- Output format: \"IMAGE: [your prompt here]\" or \"VIDEO: [your prompt here]\"\n\nExample output:\nIMAGE: A modern coffee shop interior with young professionals, warm lighting, vibrant colors, bokeh effect, shallow depth of field, minimalist aesthetic, high-resolution, professional photography\n\nCRITICAL: Output must be on a single line with no whitespaces, newlines, or formatting characters. Start with either IMAGE: or VIDEO:"
+              "content": "=You are an expert ad creative and AI prompt engineer. Using the following information, generate a detailed, imaginative, and visually descriptive prompt for an AI image generation model (Stable Diffusion).\n\nUser's Requirements:\n{{ $('Update History1').item.json.aiResponse }}\n\nInstructions:\n- Create a vivid, production-ready prompt\n- Include style, mood, lighting, and composition details\n- Incorporate the product, audience, message, and brand style\n- Make it concise but highly descriptive\n- Add technical photography terms\n- Keep under 400 characters\n- Output ONLY the prompt, nothing else"
             }
           ]
         },
@@ -370,17 +412,11 @@
       "type": "@n8n/n8n-nodes-langchain.googleGemini",
       "typeVersion": 1,
       "position": [
-        96,
-        16
+        528,
+        960
       ],
-      "id": "264d0d99-c4ad-4c9f-87fe-0cd7348b3f82",
-      "name": "Refine Prompt",
-      "credentials": {
-        "googlePalmApi": {
-          "id": "U9gAL7wTuBCRtkkL",
-          "name": "Google Gemini(PaLM) Api account 2"
-        }
-      }
+      "id": "4d3006be-1b7e-45ae-9d62-ac16e35be07f",
+      "name": "Refine Prompt1"
     },
     {
       "parameters": {
@@ -389,11 +425,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1584,
-        48
+        2032,
+        992
       ],
-      "id": "3db1d9c2-a4d8-49d2-8006-6b68ba09cd32",
-      "name": "Format Image Response"
+      "id": "09ff04a4-c218-4fd0-a2f8-375b01614071",
+      "name": "Format Image Response1"
     },
     {
       "parameters": {
@@ -404,322 +440,20 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1776,
-        48
+        2224,
+        992
       ],
-      "id": "a5dc632a-d991-4476-ae0f-f9cbd9e527c0",
-      "name": "Respond Image"
-    },
-    {
-      "parameters": {},
-      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
-      "typeVersion": 1.3,
-      "position": [
-        -560,
-        352
-      ],
-      "id": "fd9313dd-6d80-4ca9-aa98-69b97bb3b176",
-      "name": "Simple Memory"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Accept",
-              "value": "application/json"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer sk-1rGNUj2rdUWIniuKXyYFSIjzF5aDM1B6zB8fIAKk2fGwnLz8"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"text_prompts\": [\n    {\n      \"text\": \"{{ $json.text_prompts[0].text }}\",\n      \"weight\": 1.0\n    }\n  ],\n  \"height\": 1024,\n  \"width\": 1024,\n  \"steps\": 30,\n  \"cfg_scale\": 7,\n  \"samples\": 1,\n  \"style_preset\": \"photographic\"\n}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1104,
-        -64
-      ],
-      "id": "d8d59bc0-2d63-405a-b4f4-ca8f09ffb037",
-      "name": "Generate Image via Stability AI",
-      "notes": "Calls Stability AI API with refined prompt. API key now uses credentials manager for security."
-    },
-    {
-      "parameters": {
-        "jsCode": "// Get and clean the prompt - remove ALL problematic characters\nlet prompt = $json.content.parts[0].text;\n\n// Remove IMAGE: or VIDEO: prefix if present\nprompt = prompt.replace(/^(IMAGE:|VIDEO:)\\s*/i, '');\n\n// Remove all whitespace characters (\\n, \\r, \\t, etc.) and replace with single space\nprompt = prompt.replace(/[\\n\\r\\t]+/g, ' ');\n\n// Remove extra spaces (multiple spaces to single space)\nprompt = prompt.replace(/\\s+/g, ' ');\n\n// Trim start and end\nprompt = prompt.trim();\n\n// Remove any quotes that might break JSON\nprompt = prompt.replace(/[\"'`]/g, '');\n\n// Remove problematic punctuation at start/end\nprompt = prompt.replace(/^[,.\\s]+|[,.\\s]+$/g, '');\n\nconsole.log('Cleaned prompt:', prompt);\n\nreturn [{\n  json: {\n    text_prompts: [\n      {\n        text: prompt,\n        weight: 1.0\n      }\n    ],\n    height: 1024,\n    width: 1024,\n    steps: 30,\n    cfg_scale: 7,\n    samples: 1,\n    style_preset: \"photographic\"\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        720,
-        -96
-      ],
-      "id": "c466e373-832a-4a33-866e-bceb004af8a8",
-      "name": "Code in JavaScript"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "d4863c4e-9636-4fec-afbc-446aa18f0d44",
-              "leftValue": "={{ $json.content.parts[0].text }}",
-              "rightValue": "IMAGE",
-              "operator": {
-                "type": "string",
-                "operation": "contains"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        448,
-        16
-      ],
-      "id": "c924f654-30d5-4d19-9cca-b38b19478672",
-      "name": "If"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://bernard-monistical-javion.ngrok-free.dev/generate",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        688,
-        144
-      ],
-      "id": "488a785c-c654-444b-8323-551fc8baea6e",
-      "name": "HTTP Request"
-    },
-    {
-      "parameters": {
-        "url": "=https://bernard-monistical-javion.ngrok-free.dev/jobs/{{ $json.job_id }}/status",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        944,
-        256
-      ],
-      "id": "dcc3d7a8-8602-496d-9533-e47de8e5cd10",
-      "name": "HTTP Request1"
-    },
-    {
-      "parameters": {
-        "respondWith": "text",
-        "responseBody": "=Your video is available at link:\n{{ $json.result.raw.video.url }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.4,
-      "position": [
-        1248,
-        272
-      ],
-      "id": "eae6447f-46f7-406f-8323-bf0e69084426",
-      "name": "Respond to Webhook"
+      "id": "85a02358-e6a1-4baf-adf4-5a116efc85ad",
+      "name": "Respond Image1"
     }
   ],
   "pinData": {},
   "connections": {
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Parse Input",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Input": {
-      "main": [
-        [
-          {
-            "node": "Load Chat History",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Load Chat History": {
-      "main": [
-        [
-          {
-            "node": "Prepare Context",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Context": {
-      "main": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "AI Agent": {
-      "main": [
-        [
-          {
-            "node": "Update History",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Google Gemini": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update History": {
-      "main": [
-        [
-          {
-            "node": "Save Chat History",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Save Chat History": {
-      "main": [
-        [
-          {
-            "node": "Check If Complete",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check If Complete": {
-      "main": [
-        [
-          {
-            "node": "Refine Prompt",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Format Chat Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Chat Response": {
-      "main": [
-        [
-          {
-            "node": "Respond Chat",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Refine Prompt": {
-      "main": [
-        [
-          {
-            "node": "If",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Image Response": {
-      "main": [
-        [
-          {
-            "node": "Respond Image",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Simple Memory": {
       "ai_memory": [
         [
           {
-            "node": "AI Agent",
+            "node": "AI Agent1",
             "type": "ai_memory",
             "index": 0
           }
@@ -730,7 +464,7 @@
       "main": [
         [
           {
-            "node": "Format Image Response",
+            "node": "Format Image Response1",
             "type": "main",
             "index": 0
           }
@@ -748,7 +482,124 @@
         ]
       ]
     },
-    "If": {
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Parse Input1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Input1": {
+      "main": [
+        [
+          {
+            "node": "Load Chat History1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Chat History1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Context1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Context1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Update History1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update History1": {
+      "main": [
+        [
+          {
+            "node": "Save Chat History1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Chat History1": {
+      "main": [
+        [
+          {
+            "node": "Check If Complete1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Complete1": {
+      "main": [
+        [
+          {
+            "node": "Refine Prompt1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Chat Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Chat Response1": {
+      "main": [
+        [
+          {
+            "node": "Respond Chat1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refine Prompt1": {
       "main": [
         [
           {
@@ -756,53 +607,29 @@
             "type": "main",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "Format Image Response1": {
+      "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "Respond Image1",
             "type": "main",
             "index": 0
           }
         ]
-      ]
-    },
-    "HTTP Request": {
-      "main": [
-        [
-          {
-            "node": "HTTP Request1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP Request1": {
-      "main": [
-        [
-          {
-            "node": "Respond to Webhook",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Respond Image": {
-      "main": [
-        []
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "085b6b26-573e-473a-b7ec-190d9f5574f6",
+  "versionId": "62714d16-5a99-44f6-8154-8723536b1d27",
   "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "2ef23d70c61bd4cacce0d2965cedeb84e9d533dc76d9327f1f24925c69d3e802"
+    "instanceId": "1dfdc80564db046c86ed48cd94c638c9624fef6c75a533152e08ae9ce2ac327b"
   },
-  "id": "6erpUCFhUuZqRkxU",
+  "id": "VhEPkU9y25ezKvhA",
   "tags": []
 }

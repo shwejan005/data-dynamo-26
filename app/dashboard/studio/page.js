@@ -30,6 +30,7 @@ import {
   Clock,
   Edit3,
   Play,
+  Share2,
 } from "lucide-react";
 
 // Workflow steps
@@ -39,13 +40,11 @@ const WORKFLOW_STEPS = [
   { id: "brand", name: "Brand Guidelines", icon: Building2, step: 3 },
   { id: "characters", name: "Characters", icon: Users, step: 4 },
   { id: "script", name: "Script & Scenes", icon: FileText, step: 5 },
-  { id: "preprocessing", name: "Assets", icon: Clapperboard, step: 6 },
-  { id: "thumbnails", name: "Thumbnails", icon: Image, step: 7 },
-  { id: "video", name: "Video", icon: Film, step: 8 },
-  { id: "final", name: "Final", icon: Download, step: 9 },
+  { id: "preprocessing", name: "Assets & Video", icon: Film, step: 6 },
+  { id: "posting", name: "Post & Save", icon: Share2, step: 7 },
 ];
 
-// Visual styles
+
 const VISUAL_STYLES = [
   { id: "3d", name: "3D Animation", desc: "Pixar-like CGI", gradient: "from-blue-500 to-purple-600", emoji: "🎬" },
   { id: "2d", name: "2D Vector", desc: "Flat design", gradient: "from-green-400 to-teal-500", emoji: "✏️" },
@@ -53,6 +52,30 @@ const VISUAL_STYLES = [
   { id: "anime", name: "Anime", desc: "Japanese style", gradient: "from-pink-500 to-rose-500", emoji: "🌸" },
   { id: "minimalist", name: "Minimalist", desc: "Clean & simple", gradient: "from-slate-400 to-slate-600", emoji: "◯" },
   { id: "corporate", name: "Corporate", desc: "Professional", gradient: "from-indigo-500 to-blue-600", emoji: "💼" },
+];
+
+// Location assets for video generation
+const LOCATION_ASSETS = [
+  { id: "coffee-shop", name: "Coffee Shop", image: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&h=300&fit=crop" },
+  { id: "city-street", name: "City Street", image: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&h=300&fit=crop" },
+  { id: "modern-office", name: "Modern Office", image: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=300&fit=crop" },
+  { id: "beach-sunset", name: "Beach Sunset", image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&h=300&fit=crop" },
+  { id: "mountain-view", name: "Mountain View", image: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&h=300&fit=crop" },
+  { id: "urban-park", name: "Urban Park", image: "https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=400&h=300&fit=crop" },
+  { id: "cozy-living-room", name: "Cozy Living Room", image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=400&h=300&fit=crop" },
+  { id: "tech-startup", name: "Tech Startup", image: "https://images.unsplash.com/photo-1497215842964-222b430dc094?w=400&h=300&fit=crop" },
+  { id: "restaurant", name: "Restaurant", image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop" },
+  { id: "gym-fitness", name: "Gym & Fitness", image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop" },
+  { id: "rooftop-terrace", name: "Rooftop Terrace", image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop" },
+  { id: "library", name: "Library", image: "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=400&h=300&fit=crop" },
+  { id: "night-city", name: "Night City", image: "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=400&h=300&fit=crop" },
+  { id: "forest-trail", name: "Forest Trail", image: "https://images.unsplash.com/photo-1448375240586-882707db888b?w=400&h=300&fit=crop" },
+  { id: "shopping-mall", name: "Shopping Mall", image: "https://images.unsplash.com/photo-1519566335946-e6f65f0f4fdf?w=400&h=300&fit=crop" },
+  { id: "art-gallery", name: "Art Gallery", image: "https://images.unsplash.com/photo-1531243269054-5ebf6f34081e?w=400&h=300&fit=crop" },
+  { id: "industrial-loft", name: "Industrial Loft", image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=300&fit=crop" },
+  { id: "japanese-garden", name: "Japanese Garden", image: "https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=400&h=300&fit=crop" },
+  { id: "airport-terminal", name: "Airport Terminal", image: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&h=300&fit=crop" },
+  { id: "home-kitchen", name: "Home Kitchen", image: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop" },
 ];
 
 // Error Alert
@@ -136,6 +159,14 @@ function StudioContent() {
   const [script, setScript] = useState(null);
   const [generatingScript, setGeneratingScript] = useState(false);
   const [editingScene, setEditingScene] = useState(null);
+  
+  // Location & media generation state
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [generatingMedia, setGeneratingMedia] = useState(false);
+  const [generatedMedia, setGeneratedMedia] = useState(null); // { type: 'video' | 'image', url: string }
+  const [postingToBluesky, setPostingToBluesky] = useState(false);
+
+
   
   const messagesEndRef = useRef(null);
 
@@ -324,9 +355,23 @@ Pick the one that resonates with your target audience!`;
     try {
       await addUserMessage("Brand guidelines confirmed ✓");
       
+      // Pre-defined character profiles (since credits ran out for generation)
+      const defaultCharacters = [
+        { name: "Alex", role: "Protagonist", personality: "Confident and approachable", appearance: "Professional attire, friendly smile" },
+        { name: "Jordan", role: "Expert", personality: "Knowledgeable and trustworthy", appearance: "Smart casual, glasses" },
+        { name: "Sam", role: "Customer", personality: "Curious and relatable", appearance: "Casual everyday look" },
+        { name: "Taylor", role: "Narrator", personality: "Calm and authoritative", appearance: "Neutral, professional" },
+      ];
+      
+      setCharacters(defaultCharacters);
+      
       await updateCampaign({
         id: campaignId,
         currentStep: 4,
+        characters: defaultCharacters.map(c => ({
+          name: c.name,
+          description: `${c.role} - ${c.personality}. ${c.appearance}`,
+        })),
       });
       
       setActiveStep("characters");
@@ -334,15 +379,50 @@ Pick the one that resonates with your target audience!`;
       await addAssistantMessage(
         `✅ Brand confirmed!
 
-**Step 4: Character Generation**
-I'll create 3 unique characters based on your content and style preferences.
+**Step 4: Characters**
 
-Click **Generate Characters** when ready, or describe specific characters you'd like.`,
-        [{ action: "Brand guidelines saved", status: "completed" }]
+⚠️ *Character generation credits exhausted.* Using pre-defined profiles:
+
+• **Alex** - Protagonist (will be used for all ads)
+• **Jordan** - Expert
+• **Sam** - Customer  
+• **Taylor** - Narrator
+
+For this project, **Alex** will be the main character in your video.`,
+        [
+          { action: "Brand guidelines saved", status: "completed" },
+          { action: "Loaded default characters", status: "completed" },
+        ]
       );
     } catch (err) {
       setError(err.message || "Failed to confirm brand");
     }
+    
+    setLoading(false);
+  };
+
+  // Step 4: Skip character generation (no longer needed)
+  const handleSkipCharacters = async () => {
+    setLoading(true);
+    
+    await addUserMessage("Continue with default character");
+    
+    await updateCampaign({
+      id: campaignId,
+      currentStep: 5,
+    });
+    
+    setActiveStep("script");
+    
+    await addAssistantMessage(
+      `✅ Using **Alex** as your main character!
+
+**Step 5: Script Generation**
+I'll create a 5-scene script based on your content, style, and character.
+
+Click **Generate Script** to begin!`,
+      [{ action: "Character selected", status: "completed" }]
+    );
     
     setLoading(false);
   };
@@ -365,68 +445,6 @@ Click **Generate Characters** when ready, or describe specific characters you'd 
     setLoading(false);
   };
 
-  // Step 4: Generate characters
-  const handleGenerateCharacters = async () => {
-    if (generatingCharacters) return;
-    
-    setGeneratingCharacters(true);
-    
-    try {
-      await addUserMessage("Generate characters");
-      
-      const response = await fetch("/api/studio/characters", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: textContent,
-          style: selectedStyle,
-          brandName: campaign?.brandName,
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || data.details || "Failed to generate characters");
-      }
-      
-      setCharacters(data.characters);
-      
-      await updateCampaign({
-        id: campaignId,
-        characters: data.characters.map(c => ({
-          name: c.name,
-          description: `${c.role} - ${c.personality}. ${c.appearance}`,
-        })),
-      });
-      
-      const charNames = data.characters.map(c => `• **${c.name}** - ${c.role}`).join("\n");
-      
-      await addAssistantMessage(
-        `🎭 **3 Characters Created!**
-
-${charNames}
-
-Check them in the sidebar. Happy with these characters?`,
-        [
-          { action: "Analyzing content", status: "completed" },
-          { action: "Generated 3 characters", status: "completed" },
-        ]
-      );
-    } catch (err) {
-      setError(err.message || "Failed to generate characters");
-      await addAssistantMessage("❌ Character generation failed. Please try again.");
-    }
-    
-    setGeneratingCharacters(false);
-  };
-
-  // Step 4: Regenerate characters
-  const handleRegenerateCharacters = async () => {
-    await addUserMessage("Regenerate with different characters");
-    setCharacters([]);
-    await handleGenerateCharacters();
-  };
 
   // Step 4: Continue to next step
   const handleContinueToScript = async () => {
@@ -530,13 +548,364 @@ Review the scenes below. You can edit any scene or regenerate the entire script.
     await addAssistantMessage(
       `✅ Script finalized!
 
-**Step 6: Asset Generation** (Coming Soon)
-Location backgrounds and outfit references will be generated here.`,
+**Step 6: Select Location**
+Choose a background location for your video from the options below. Once selected, click "Generate Video" to create your content.`,
       [{ action: "Script approved", status: "completed" }]
     );
     
     setLoading(false);
   };
+
+  // Step 6: Select location
+  const handleLocationSelect = (locationId) => {
+    setSelectedLocation(locationId);
+    setGeneratedMedia(null); // Reset any previously generated media
+  };
+
+  // Build comprehensive prompt with all context
+  const buildContextualPrompt = (location) => {
+    const style = VISUAL_STYLES.find(s => s.id === selectedStyle);
+    const brandName = campaign?.brandName || "";
+    const brandColors = campaign?.brandColors?.join(", ") || "";
+    
+    // Get scene descriptions from script
+    const sceneDescriptions = script?.scenes?.map(s => s.visual).join(". ") || "";
+    
+    // Get character info
+    const characterInfo = characters.map(c => 
+      `${c.name} (${c.role}): ${c.appearance || c.personality}`
+    ).join("; ") || "";
+    
+    // Build comprehensive prompt
+    let prompt = `${location.name} scene for ${brandName} advertisement. `;
+    prompt += `${style?.name || 'Cinematic'} style. `;
+    
+    if (brandColors) {
+      prompt += `Brand colors: ${brandColors}. `;
+    }
+    
+    if (characterInfo) {
+      prompt += `Characters: ${characterInfo}. `;
+    }
+    
+    if (sceneDescriptions) {
+      prompt += `Scene context: ${sceneDescriptions.substring(0, 200)}. `;
+    }
+    
+    prompt += `Professional video advertisement, high quality, ${style?.desc || 'cinematic lighting'}.`;
+    
+    return prompt;
+  };
+
+  // Step 6: Generate video with image fallback
+  const handleGenerateMedia = async () => {
+    if (!selectedLocation || generatingMedia) return;
+    
+    setGeneratingMedia(true);
+    setGeneratedMedia(null);
+    
+    const location = LOCATION_ASSETS.find(l => l.id === selectedLocation);
+    
+    // Build comprehensive prompt with full context
+    const prompt = buildContextualPrompt(location);
+    
+    console.log("Generating media with context:", {
+      location: location.name,
+      style: selectedStyle,
+      brandName: campaign?.brandName,
+      charactersCount: characters.length,
+      hasScript: !!script,
+      prompt: prompt.substring(0, 200) + "..."
+    });
+    
+    try {
+      await addUserMessage(`Generate video with ${location.name} location`);
+      
+      // Try video generation first
+      const videoResponse = await fetch("/api/studio/generate-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          imageUrl: location.image,
+          duration: 5,
+        }),
+      });
+      
+      if (videoResponse.ok) {
+        const videoData = await videoResponse.json();
+        if (videoData.success && videoData.videoUrl) {
+          setGeneratedMedia({ type: "video", url: videoData.videoUrl });
+          await addAssistantMessage(
+            `🎬 **Video Generated!**
+
+Your video has been created successfully using the ${location.name} location.
+
+**Context applied:**
+- Brand: ${campaign?.brandName || 'N/A'}
+- Style: ${VISUAL_STYLES.find(s => s.id === selectedStyle)?.name || 'Cinematic'}
+- Characters: ${characters.length > 0 ? characters.map(c => c.name).join(', ') : 'None'}
+- Script scenes: ${script?.scenes?.length || 0}`,
+            [
+              { action: "Video generation", status: "completed" },
+            ]
+          );
+          setGeneratingMedia(false);
+          return;
+        }
+      }
+      
+      // Fallback to Stability AI image
+      await addAssistantMessage(
+        `⚠️ Video generation taking longer than expected. Generating image instead...`,
+        [{ action: "Video generation", status: "fallback" }]
+      );
+      
+      const imageResponse = await fetch("/api/studio/generate-stability-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          style: selectedStyle,
+        }),
+      });
+      
+      if (!imageResponse.ok) {
+        const errorData = await imageResponse.json();
+        throw new Error(errorData.error || "Both video and image generation failed");
+      }
+      
+      const imageData = await imageResponse.json();
+      
+      if (imageData.success && imageData.imageUrl) {
+        setGeneratedMedia({ type: "image", url: imageData.imageUrl });
+        await addAssistantMessage(
+          `🖼️ **Image Generated!**
+
+Created a ${location.name} background image using Stability AI.
+
+**Context applied:**
+- Brand: ${campaign?.brandName || 'N/A'}
+- Style: ${VISUAL_STYLES.find(s => s.id === selectedStyle)?.name || 'Cinematic'}
+- Characters: ${characters.length > 0 ? characters.map(c => c.name).join(', ') : 'None'}`,
+          [
+            { action: "Stability AI image generation", status: "completed" },
+          ]
+        );
+      } else {
+        throw new Error("No image generated");
+      }
+
+    } catch (err) {
+      setError(err.message || "Failed to generate media");
+      await addAssistantMessage("❌ Media generation failed. Please try again.");
+    }
+    
+    setGeneratingMedia(false);
+  };
+
+  // Step 6: Continue to posting
+  const handleContinueToPosting = async () => {
+    setLoading(true);
+    
+    await addUserMessage("Media ready, continue to posting");
+    
+    await updateCampaign({
+      id: campaignId,
+      currentStep: 7,
+    });
+    
+    setActiveStep("posting");
+    
+    await addAssistantMessage(
+      `✅ Your ${generatedMedia?.type || 'content'} is ready!
+
+**Step 7: Post & Save**
+You can now:
+• 🦋 **Share to Bluesky** - Post directly to your Bluesky account
+• 💾 **Save as Draft** - Save this project for later
+• ⬇️ **Download** - Download your generated media`,
+      [{ action: "Media generation completed", status: "completed" }]
+    );
+    
+    setLoading(false);
+  };
+
+  // Save project as draft
+  const handleSaveAsDraft = async () => {
+    setLoading(true);
+    
+    try {
+      // Only pass fields that exist in the schema
+      const updateData = {
+        id: campaignId,
+        status: "draft",
+      };
+      
+      // Store video/image URL in finalVideoUrl if available
+      if (generatedMedia?.url) {
+        updateData.finalVideoUrl = generatedMedia.url;
+      }
+      
+      await updateCampaign(updateData);
+
+      
+      await addAssistantMessage(
+        `💾 **Project Saved as Draft!**
+
+Your project has been saved and you can continue working on it anytime from your dashboard.`,
+        [{ action: "Saved as draft", status: "completed" }]
+      );
+    } catch (err) {
+      setError(err.message || "Failed to save draft");
+    }
+    
+    setLoading(false);
+  };
+
+
+  // Post generated media to Bluesky
+  const handlePostToBluesky = async () => {
+    if (!generatedMedia || postingToBluesky) return;
+    
+    setPostingToBluesky(true);
+    
+    try {
+      const location = LOCATION_ASSETS.find(l => l.id === selectedLocation);
+      const style = VISUAL_STYLES.find(s => s.id === selectedStyle);
+      
+      // Create post content
+      const postContent = `✨ New ${style?.name || 'AI'} artwork generated!
+
+📍 Location: ${location?.name || 'Custom'}
+🎨 Brand: ${campaign?.brandName || 'My Project'}
+🤖 Created with AI Video Studio
+
+#AIArt #GenerativeAI #${campaign?.brandName?.replace(/\s+/g, '') || 'AICreation'}`;
+
+      // Helper function to compress image using canvas
+      const compressImage = async (imageUrl, maxSizeBytes = 900000) => {
+        return new Promise((resolve, reject) => {
+          const img = document.createElement('img');
+
+          
+          // Only set crossOrigin for non-data URLs
+          if (!imageUrl.startsWith('data:')) {
+            img.crossOrigin = 'anonymous';
+          }
+          
+          img.onload = () => {
+            let { width, height } = img;
+            
+            // Start by reducing dimensions if very large
+            const maxDimension = 1200;
+            if (width > maxDimension || height > maxDimension) {
+              const ratio = Math.min(maxDimension / width, maxDimension / height);
+              width = Math.round(width * ratio);
+              height = Math.round(height * ratio);
+            }
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Start with lower quality
+            let quality = 0.7;
+            
+            const tryCompress = () => {
+              canvas.toBlob((result) => {
+                if (!result) {
+                  reject(new Error('Failed to compress image'));
+                  return;
+                }
+                
+                console.log(`Trying quality ${quality}: ${(result.size / 1024).toFixed(1)}KB`);
+                
+                if (result.size <= maxSizeBytes || quality <= 0.2) {
+                  console.log(`Final compressed: ${(result.size / 1024).toFixed(1)}KB`);
+                  resolve(result);
+                } else {
+                  quality -= 0.1;
+                  // Also reduce dimensions more aggressively
+                  if (quality <= 0.4 && width > 600) {
+                    width = Math.round(width * 0.7);
+                    height = Math.round(height * 0.7);
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.drawImage(img, 0, 0, width, height);
+                  }
+                  tryCompress();
+                }
+              }, 'image/jpeg', quality);
+            };
+            
+            tryCompress();
+          };
+          
+          img.onerror = (e) => {
+            console.error('Image load error:', e);
+            reject(new Error('Failed to load image for compression'));
+          };
+          
+          img.src = imageUrl;
+        });
+      };
+
+      // Convert image URL/base64 to blob and compress if needed
+      let imageBlob;
+      try {
+        // Use compression for all images to ensure they're under 1MB
+        imageBlob = await compressImage(generatedMedia.url);
+        console.log(`Image size after compression: ${(imageBlob.size / 1024).toFixed(1)}KB`);
+      } catch (compressErr) {
+        // Fallback to original conversion if compression fails
+        console.error('Compression failed:', compressErr);
+        throw new Error(`Image compression failed: ${compressErr.message}. Please try downloading and uploading manually.`);
+      }
+
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('content', postContent);
+      formData.append('media', imageBlob, 'generated-image.jpg');
+      formData.append('mediaType', 'image');
+      formData.append('altText', `${style?.name || 'AI'} generated ${location?.name || 'scene'} for ${campaign?.brandName || 'project'}`);
+
+      const result = await fetch('/api/bluesky', {
+        method: 'POST',
+        body: formData,
+      });
+
+
+      const data = await result.json();
+
+      if (!result.ok) {
+        throw new Error(data.error || 'Failed to post to Bluesky');
+      }
+
+      await addAssistantMessage(
+        `🦋 **Posted to Bluesky!**
+
+Your generated ${generatedMedia.type} has been shared successfully.
+
+[View Post →](https://bsky.app/profile/${process.env.NEXT_PUBLIC_BLUESKY_HANDLE || 'your-handle'})`,
+        [{ action: "Shared to Bluesky", status: "completed" }]
+      );
+    } catch (err) {
+      setError(err.message || "Failed to post to Bluesky");
+      await addAssistantMessage(`❌ Failed to post to Bluesky: ${err.message}`);
+    }
+    
+    setPostingToBluesky(false);
+  };
+
 
   // Send free-form message
   const handleSend = async () => {
@@ -808,38 +1177,45 @@ Location backgrounds and outfit references will be generated here.`,
                 </motion.div>
               )}
 
-              {/* Step 4: Character Actions */}
-              {activeStep === "characters" && !loading && !generatingCharacters && (
+              {/* Step 4: Character Actions - Pre-defined profiles */}
+              {activeStep === "characters" && !loading && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-4"
                 >
-                  {characters.length === 0 ? (
-                    <div className="flex justify-center">
-                      <ActionButton onClick={handleGenerateCharacters} icon={Sparkles}>
-                        Generate Characters
-                      </ActionButton>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        {characters.map((char, i) => (
-                          <CharacterCard key={i} character={char} index={i} />
-                        ))}
+                  {/* Show pre-defined character cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {characters.map((char, i) => (
+                      <div 
+                        key={i} 
+                        className={`p-3 rounded-xl border transition-all ${
+                          i === 0 
+                            ? "bg-orange-500/20 border-orange-500/50" 
+                            : "bg-gray-800/50 border-gray-700/50 opacity-60"
+                        }`}
+                      >
+                        <div className="text-2xl mb-1">{i === 0 ? "⭐" : "👤"}</div>
+                        <p className="font-medium text-sm text-white">{char.name}</p>
+                        <p className="text-xs text-gray-400">{char.role}</p>
+                        {i === 0 && (
+                          <span className="inline-block mt-2 text-xs bg-orange-500/30 text-orange-300 px-2 py-0.5 rounded">
+                            Selected
+                          </span>
+                        )}
                       </div>
-                      <div className="flex flex-wrap gap-3 justify-center">
-                        <ActionButton onClick={handleContinueToScript} icon={ArrowRight}>
-                          Continue to Script
-                        </ActionButton>
-                        <ActionButton onClick={handleRegenerateCharacters} variant="secondary" icon={RefreshCw}>
-                          Regenerate
-                        </ActionButton>
-                      </div>
-                    </>
-                  )}
+                    ))}
+                  </div>
+                  
+                  {/* Continue button */}
+                  <div className="flex justify-center">
+                    <ActionButton onClick={handleSkipCharacters} icon={ArrowRight}>
+                      Continue with Alex
+                    </ActionButton>
+                  </div>
                 </motion.div>
               )}
+
 
               {/* Step 5: Script Actions */}
               {activeStep === "script" && !loading && !generatingScript && (
@@ -938,10 +1314,248 @@ Location backgrounds and outfit references will be generated here.`,
                   <span className="text-gray-400">Generating script...</span>
                 </motion.div>
               )}
+
+              {/* Step 6: Location Selection & Media Generation */}
+              {activeStep === "preprocessing" && !loading && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-6"
+                >
+                  {/* Location Grid */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-400 mb-3">Select a Location</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {LOCATION_ASSETS.map((location) => (
+                        <button
+                          key={location.id}
+                          onClick={() => handleLocationSelect(location.id)}
+                          className={`relative rounded-xl overflow-hidden transition-all group ${
+                            selectedLocation === location.id
+                              ? "ring-2 ring-orange-500 scale-[1.02]"
+                              : "hover:scale-[1.02] hover:ring-1 hover:ring-gray-600"
+                          }`}
+                        >
+                          <img
+                            src={location.image}
+                            alt={location.name}
+                            className="w-full h-24 object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-2">
+                            <p className="text-xs font-medium text-white truncate">{location.name}</p>
+                          </div>
+                          {selectedLocation === location.id && (
+                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
+                              <Check size={12} className="text-black" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Generate Media Button */}
+                  {selectedLocation && !generatedMedia && (
+                    <div className="flex justify-center">
+                      <ActionButton
+                        onClick={handleGenerateMedia}
+                        icon={Film}
+                        loading={generatingMedia}
+                        disabled={generatingMedia}
+                      >
+                        {generatingMedia ? "Generating..." : "Generate Video"}
+                      </ActionButton>
+                    </div>
+                  )}
+
+                  {/* Media Generation Loading */}
+                  {generatingMedia && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="bg-[#1a1a1a] border border-gray-800 rounded-xl p-6 text-center"
+                    >
+                      <Loader2 className="animate-spin text-orange-400 mx-auto mb-3" size={32} />
+                      <p className="text-gray-300">Generating your media...</p>
+                      <p className="text-xs text-gray-500 mt-1">This may take a minute</p>
+                    </motion.div>
+                  )}
+
+                  {/* Generated Media Display */}
+                  {generatedMedia && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-[#1a1a1a] border border-gray-800 rounded-xl overflow-hidden"
+                    >
+                      {generatedMedia.type === "video" ? (
+                        <video
+                          src={generatedMedia.url}
+                          controls
+                          autoPlay
+                          loop
+                          className="w-full rounded-t-xl"
+                        />
+                      ) : (
+                        <img
+                          src={generatedMedia.url}
+                          alt="Generated"
+                          className="w-full rounded-t-xl"
+                        />
+                      )}
+                      <div className="p-4 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-white">
+                            {generatedMedia.type === "video" ? "🎬 Video Generated" : "🖼️ Image Generated"}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {LOCATION_ASSETS.find(l => l.id === selectedLocation)?.name} location
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handlePostToBluesky}
+                            disabled={postingToBluesky || generatedMedia.type === "video"}
+                            className="p-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            title={generatedMedia.type === "video" ? "Video posting not supported yet" : "Share to Bluesky"}
+                          >
+                            {postingToBluesky ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <Share2 size={16} />
+                            )}
+                          </button>
+                          <a
+                            href={generatedMedia.url}
+                            download={`generated-${generatedMedia.type}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-all"
+                          >
+                            <Download size={16} />
+                          </a>
+                        </div>
+                      </div>
+
+                    </motion.div>
+                  )}
+
+                  {/* Continue Button */}
+                  {generatedMedia && !loading && (
+                    <div className="flex flex-wrap gap-3 justify-center">
+                      <ActionButton onClick={handleContinueToPosting} icon={ArrowRight}>
+                        Continue to Post & Save
+                      </ActionButton>
+                      <ActionButton
+                        onClick={() => {
+                          setGeneratedMedia(null);
+                          setSelectedLocation(null);
+                        }}
+                        variant="secondary"
+                        icon={RefreshCw}
+                      >
+                        Try Different Location
+                      </ActionButton>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* Step 7: Posting Step */}
+              {activeStep === "posting" && !loading && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-6"
+                >
+                  {/* Media Preview */}
+                  {generatedMedia && (
+                    <div className="bg-[#1a1a1a] border border-gray-800 rounded-xl overflow-hidden">
+                      {generatedMedia.type === "video" ? (
+                        <video
+                          src={generatedMedia.url}
+                          controls
+                          className="w-full max-h-64 object-contain"
+                        />
+                      ) : (
+                        <img
+                          src={generatedMedia.url}
+                          alt="Generated"
+                          className="w-full max-h-64 object-contain"
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Action Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Share to Bluesky */}
+                    <button
+                      onClick={handlePostToBluesky}
+                      disabled={postingToBluesky || generatedMedia?.type === "video"}
+                      className="p-4 rounded-xl bg-blue-600/20 border border-blue-500/30 hover:bg-blue-600/30 transition-all text-left disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        {postingToBluesky ? (
+                          <Loader2 className="animate-spin text-blue-400" size={24} />
+                        ) : (
+                          <Share2 className="text-blue-400" size={24} />
+                        )}
+                        <span className="font-semibold text-white">
+                          {postingToBluesky ? "Posting..." : "Share to Bluesky"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400">Post to your Bluesky account</p>
+                    </button>
+
+                    {/* Save as Draft */}
+                    <button
+                      onClick={handleSaveAsDraft}
+                      disabled={loading}
+                      className="p-4 rounded-xl bg-green-600/20 border border-green-500/30 hover:bg-green-600/30 transition-all text-left disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <Check className="text-green-400" size={24} />
+                        <span className="font-semibold text-white">Save as Draft</span>
+                      </div>
+                      <p className="text-xs text-gray-400">Save project for later</p>
+                    </button>
+
+                    {/* Download */}
+                    <a
+                      href={generatedMedia?.url}
+                      download={`${campaign?.brandName || 'generated'}-${generatedMedia?.type || 'media'}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-4 rounded-xl bg-gray-700/20 border border-gray-600/30 hover:bg-gray-700/30 transition-all text-left"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <Download className="text-gray-400" size={24} />
+                        <span className="font-semibold text-white">Download</span>
+                      </div>
+                      <p className="text-xs text-gray-400">Download your {generatedMedia?.type || 'media'}</p>
+                    </a>
+                  </div>
+
+                  {/* Back to Dashboard */}
+                  <div className="flex justify-center pt-4">
+                    <ActionButton
+                      onClick={() => router.push('/dashboard')}
+                      variant="ghost"
+                      icon={ArrowLeft}
+                    >
+                      Back to Dashboard
+                    </ActionButton>
+                  </div>
+                </motion.div>
+              )}
+
               
               <div ref={messagesEndRef} />
             </div>
           </div>
+
 
           {/* Input */}
           <div className="border-t border-gray-800 p-4">
@@ -975,15 +1589,16 @@ Location backgrounds and outfit references will be generated here.`,
           <div className="p-4 border-b border-gray-800">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold">Progress</h3>
-              <span className="text-xs text-gray-500">{WORKFLOW_STEPS.findIndex(s => s.id === activeStep) + 1}/9</span>
+              <span className="text-xs text-gray-500">{WORKFLOW_STEPS.findIndex(s => s.id === activeStep) + 1}/{WORKFLOW_STEPS.length}</span>
             </div>
             <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-orange-500 to-orange-600 transition-all duration-500"
-                style={{ width: `${((WORKFLOW_STEPS.findIndex(s => s.id === activeStep) + 1) / 9) * 100}%` }}
+                style={{ width: `${((WORKFLOW_STEPS.findIndex(s => s.id === activeStep) + 1) / WORKFLOW_STEPS.length) * 100}%` }}
               />
             </div>
           </div>
+
 
           <div className="p-2">
             {WORKFLOW_STEPS.map((step) => {
