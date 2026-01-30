@@ -502,7 +502,15 @@ Click **Generate Script** to begin!`,
       
       await updateCampaign({
         id: campaignId,
-        script: data.script,
+        script: JSON.stringify(data.script),
+        scenes: data.script.scenes?.map(s => ({
+          id: s.id,
+          title: s.title,
+          description: s.visual || s.description || "",
+          dialogue: s.narration || s.dialogue || "",
+          characters: s.characters || [],
+          location: "",
+        })) || [],
       });
       
       await addAssistantMessage(
@@ -1584,8 +1592,8 @@ Your generated ${generatedMedia.type} has been shared successfully.
           </div>
         </div>
 
-        {/* Sidebar */}
-        <aside className="w-72 border-l border-gray-800 bg-[#0a0a0a] overflow-y-auto">
+        {/* Sidebar - Sticky */}
+        <aside className="w-72 border-l border-gray-800 bg-[#0a0a0a] overflow-y-auto sticky top-0 h-screen">
           <div className="p-4 border-b border-gray-800">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold">Progress</h3>
