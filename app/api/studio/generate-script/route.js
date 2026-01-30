@@ -1,49 +1,96 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function POST(request) {
   try {
-    const { pdfContent, pdfSummary, style } = await request.json();
+    const { content, style, characters, brandName } = await request.json();
 
-    const model = genAI.models.get("gemini-2.0-flash");
+    if (!content) {
+      return NextResponse.json(
+        { error: "Content is required to generate a script" },
+        { status: 400 }
+      );
+    }
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const styleDescriptions = {
-      "3d": "3D animated style with modern CGI aesthetics",
-      "2d": "2D animated style with clean vector graphics",
-      "realistic": "photorealistic style with live-action feel",
-      "anime": "anime style with expressive characters",
+      "3d": "3D animated style like Pixar with modern CGI aesthetics",
+      "2d": "2D animated style with clean vector graphics and flat design",
+      "realistic": "photorealistic style with cinematic live-action feel",
+      "anime": "anime style with expressive characters and vibrant colors",
+      "minimalist": "minimalist style with clean shapes and simple visuals",
+      "corporate": "professional corporate style suitable for business",
     };
 
-    const prompt = `You are a professional video script writer. Create a video script based on the following document summary and content.
+    const characterInfo = characters?.length > 0 
+      ? `\n\nCharacters to include:\n${characters.map(c => `- ${c.name}: ${c.description || c.role}`).join('\n')}`
+      : '';
 
-Document Summary:
-${pdfSummary || "General educational content"}
+    const prompt = `You are a professional video script writer for ${brandName || 'a brand'}. Create a video script based on the following content.
 
-Document Content (excerpt):
-${pdfContent?.substring(0, 3000) || "N/A"}
+Content to adapt:
+${content.substring(0, 4000)}
+${characterInfo}
 
-Visual Style: ${styleDescriptions[style] || "professional animated"}
+Visual Style: ${styleDescriptions[style] || styleDescriptions["3d"]}
 
 Requirements:
-1. Write a compelling narrator script that explains the key concepts
-2. Break it into clear scenes (Scene 1, Scene 2, etc.)
-3. Each scene should have: Scene title, Visual description, Narrator dialogue
-4. Keep the total length suitable for a 2-3 minute video
-5. Make it engaging and educational
+1. Create exactly 5 scenes for a 60-90 second video
+2. Each scene must have:
+   - Scene number and title
+   - Duration (in seconds)
+   - Visual description (what we see on screen)
+   - Narration/dialogue (what is spoken)
+   - Which characters appear (if any)
+3. Make it engaging, clear, and professional
+4. Ensure good pacing and flow between scenes
 
-Format the script clearly with scene headers and dialogue.`;
+Respond ONLY with valid JSON in this format:
+{
+  "title": "Video Title",
+  "totalDuration": 75,
+  "scenes": [
+    {
+      "id": "scene-1",
+      "number": 1,
+      "title": "Scene Title",
+      "duration": 15,
+      "visual": "Visual description...",
+      "narration": "What the narrator says...",
+      "characters": ["Character Name"]
+    }
+  ]
+}`;
 
-    const response = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-    const script = response.text || "Script generation failed. Please try again.";
+    // Parse JSON from response
+    let scriptData;
+    try {
+      scriptData = JSON.parse(text);
+    } catch {
+      // Try to extract JSON from markdown code blocks
+      const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        scriptData = JSON.parse(jsonMatch[1]);
+      } else {
+        const objectMatch = text.match(/\{[\s\S]*"scenes"[\s\S]*\}/);
+        if (objectMatch) {
+          scriptData = JSON.parse(objectMatch[0]);
+        } else {
+          throw new Error("Could not parse script data");
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      script,
+      script: scriptData,
     });
   } catch (error) {
     console.error("Script generation error:", error);

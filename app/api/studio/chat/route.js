@@ -33,7 +33,10 @@ export async function POST(req) {
   try {
     const { message, history, projectData, campaignId, activeStep } = await req.json();
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.0-flash",
+      systemInstruction: SYSTEM_PROMPT.replace("{currentStep}", activeStep || "overview"),
+    });
 
     // Build conversation history
     const chatHistory = history
@@ -46,7 +49,6 @@ export async function POST(req) {
     // Create the chat
     const chat = model.startChat({
       history: chatHistory,
-      systemInstruction: SYSTEM_PROMPT.replace("{currentStep}", activeStep || "overview"),
     });
 
     // Send the message

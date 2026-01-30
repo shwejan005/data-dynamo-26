@@ -4,70 +4,42 @@ import { useState } from "react"
 
 export default function TestPage() {
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
+  const [imageBase64, setImageBase64] = useState(null)
 
-  async function pollOperation(operationName) {
-    console.log("\n🔄 START POLLING:", operationName)
-
-    while (true) {
-      console.log("📡 Polling backend...")
-
-      const res = await fetch("/api/veo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "status",
-          operationName
-        })
-      })
-
-      console.log("📊 Poll HTTP Status:", res.status)
-
-      const data = await res.json()
-      console.log("📥 Poll Data:", data)
-
-      if (data.done) {
-        console.log("✅ VIDEO GENERATION DONE")
-        return data
-      }
-
-      console.log("⏳ Waiting 5s before next poll...")
-      await new Promise(r => setTimeout(r, 5000))
-    }
-  }
-
-  async function generateVideo() {
+  async function generateImage() {
     console.log("\n======================")
-    console.log("🎬 GENERATE BUTTON CLICKED")
+    console.log("🖼 IMAGE GENERATE CLICKED")
     console.log("======================")
 
     setLoading(true)
 
     try {
-      console.log("📡 Calling backend generate...")
+      console.log("📡 Calling backend...")
 
       const res = await fetch("/api/veo", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
-          mode: "generate",
-          prompt: "cinematic ocean sunset drone shot realistic lighting"
+          prompt:
+            "Ultra realistic man eating french fries"
         })
       })
 
-      console.log("📊 Generate HTTP Status:", res.status)
+      console.log("📊 HTTP Status:", res.status)
 
       const data = await res.json()
-      console.log("📥 Generate Response:", data)
+      console.log("📥 Backend Response:", data)
 
-      const operationName = data.name
-      console.log("🆔 Operation Name:", operationName)
+      if (data?.image) {
+        setImageBase64(data.image)
+      }
 
-      const finalResult = await pollOperation(operationName)
-
-      console.log("🏁 FINAL RESULT:", finalResult)
-
-      setResult(finalResult)
+      // Some responses return array format
+      if (data?.artifacts?.[0]?.base64) {
+        setImageBase64(data.artifacts[0].base64)
+      }
 
     } catch (err) {
       console.error("🔥 FRONTEND ERROR:", err)
@@ -78,16 +50,31 @@ export default function TestPage() {
 
   return (
     <div style={{ padding: 40 }}>
-      <h1>Veo Test</h1>
+      <h1>Stable Diffusion 3.5 Test</h1>
 
-      <button onClick={generateVideo} disabled={loading}>
-        {loading ? "Generating..." : "Generate Video"}
+      <button
+        onClick={generateImage}
+        disabled={loading}
+        style={{
+          padding: "12px 24px",
+          fontSize: 16
+        }}
+      >
+        {loading ? "Generating..." : "Generate Image"}
       </button>
 
-      {result && (
-        <pre style={{ marginTop: 20 }}>
-          {JSON.stringify(result, null, 2)}
-        </pre>
+      {imageBase64 && (
+        <div style={{ marginTop: 30 }}>
+          <h3>Generated Image</h3>
+
+          <img
+            src={`data:image/png;base64,${imageBase64}`}
+            style={{
+              width: 400,
+              borderRadius: 10
+            }}
+          />
+        </div>
       )}
     </div>
   )
