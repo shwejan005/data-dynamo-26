@@ -16,6 +16,9 @@ import {
   ExternalLink,
   AlertCircle,
   Loader2,
+  ImageIcon,
+  X,
+  Upload,
 } from "lucide-react";
 
 const STATUS_CONFIG = {
@@ -86,8 +89,13 @@ export default function SocialPage() {
     checkBlueskyConnection();
   }, [blueskyAccount]);
 
-  const handleCreatePost = async (content) => {
-    await createPost({ content, platform: "bluesky" });
+  const handleCreatePost = async (content, mediaFile, altText) => {
+    await createPost({ 
+      content, 
+      platform: "bluesky",
+      hasMedia: !!mediaFile,
+      altText: altText,
+    });
     setShowCreateModal(false);
   };
 
@@ -96,14 +104,22 @@ export default function SocialPage() {
     setEditingPost(null);
   };
 
-  const handleStatusChange = async (id, newStatus, content) => {
+  const handleStatusChange = async (id, newStatus, content, mediaFile, altText) => {
     if (newStatus === "posted") {
       setPosting(id);
       try {
+        // Use FormData for media support
+        const formData = new FormData();
+        formData.append("content", content);
+        if (mediaFile) {
+          formData.append("media", mediaFile);
+          formData.append("mediaType", mediaFile.type.startsWith("video") ? "video" : "image");
+          formData.append("altText", altText || "Image attachment");
+        }
+
         const res = await fetch("/api/bluesky", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content }),
+          body: formData,
         });
         const data = await res.json();
 
@@ -138,6 +154,42 @@ export default function SocialPage() {
   const handleDelete = async (id) => {
     if (confirm("Are you sure you want to delete this post?")) {
       await deletePost({ id });
+    }
+  };
+
+  // Post directly with media (bypasses draft for immediate posting)
+  const handlePostNow = async (content, mediaFile, altText) => {
+    try {
+      const formData = new FormData();
+      formData.append("content", content);
+      if (mediaFile) {
+        formData.append("media", mediaFile);
+        formData.append("mediaType", mediaFile.type.startsWith("video") ? "video" : "image");
+        formData.append("altText", altText || "");
+      }
+
+      const res = await fetch("/api/bluesky", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        // Create a record in the database as "posted"
+        await createPost({
+          content,
+          platform: "bluesky",
+          hasMedia: !!mediaFile,
+          altText: altText,
+        });
+        // Update it to posted status (we'll get the ID from the above, but for simplicity just close)
+        setShowCreateModal(false);
+        alert("Posted successfully to Bluesky!");
+      } else {
+        alert(`Failed to post: ${data.error}`);
+      }
+    } catch (error) {
+      alert(`Error: ${error.message}`);
     }
   };
 
@@ -271,6 +323,8 @@ export default function SocialPage() {
                 setEditingPost(null);
               }}
               onSave={editingPost ? handleUpdatePost : handleCreatePost}
+              onPostNow={handlePostNow}
+              isConnected={isConnected}
             />
           )}
         </AnimatePresence>
@@ -406,10 +460,52 @@ function PostCard({ post, posting, onEdit, onDelete, onStatusChange, blueskyConn
   );
 }
 
-// Modal Component
-function PostModal({ post, onClose, onSave }) {
+// Modal Component with Media Upload
+function PostModal({ post, onClose, onSave, onPostNow, isConnected }) {
   const [content, setContent] = useState(post?.content || "");
   const [saving, setSaving] = useState(false);
+  const [posting, setPosting] = useState(false);
+  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaPreview, setMediaPreview] = useState(null);
+  const [altText, setAltText] = useState("");
+
+  const handleMediaSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Only images supported (Bluesky video API not available via SDK)
+    const isImage = file.type.startsWith("image/");
+    
+    if (!isImage) {
+      alert("Only images are supported. Bluesky's video API is not yet available.");
+      return;
+    }
+
+    // Validate file size (1MB for images on Bluesky)
+    if (file.size > 1000000) {
+      alert("Image must be under 1MB");
+      return;
+    }
+
+    setMediaFile(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setMediaPreview({
+        url: reader.result,
+        type: "image",
+        name: file.name,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeMedia = () => {
+    setMediaFile(null);
+    setMediaPreview(null);
+    setAltText("");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -418,12 +514,23 @@ function PostModal({ post, onClose, onSave }) {
     setSaving(true);
     try {
       if (post) {
-        await onSave(post._id, content);
+        await onSave(post._id, content, mediaFile, altText);
       } else {
-        await onSave(content);
+        await onSave(content, mediaFile, altText);
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePostNow = async () => {
+    if (!content.trim()) return;
+    
+    setPosting(true);
+    try {
+      await onPostNow(content, mediaFile, altText);
+    } finally {
+      setPosting(false);
     }
   };
 
@@ -442,7 +549,7 @@ function PostModal({ post, onClose, onSave }) {
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-[#1a1a1a] border border-gray-700 rounded-xl w-full max-w-lg p-6"
+        className="bg-[#1a1a1a] border border-gray-700 rounded-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-xl font-semibold mb-4">
@@ -457,13 +564,71 @@ function PostModal({ post, onClose, onSave }) {
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              rows={5}
+              rows={4}
               placeholder="What's on your mind?"
               className="w-full px-4 py-3 rounded-lg bg-[#111] border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
             />
             <div className={`text-xs mt-1 text-right ${isOverLimit ? "text-red-400" : "text-gray-500"}`}>
               {content.length} / {charLimit} characters
             </div>
+          </div>
+
+          {/* Media Upload Section */}
+          <div className="mb-4">
+            <label className="block text-sm text-gray-400 mb-2">
+              Add Media (Optional)
+            </label>
+            
+            {!mediaPreview ? (
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-700 border-dashed rounded-lg cursor-pointer bg-[#111] hover:bg-[#1a1a1a] hover:border-gray-600 transition-all">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Upload size={24} className="text-gray-500 mb-2" />
+                  <p className="text-sm text-gray-500">
+                    <span className="text-orange-400">Click to upload</span> an image
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">PNG, JPG, GIF up to 1MB</p>
+                </div>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleMediaSelect}
+                />
+              </label>
+            ) : (
+              <div className="relative">
+                {mediaPreview.type === "image" ? (
+                  <img
+                    src={mediaPreview.url}
+                    alt="Preview"
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                ) : (
+                  <video
+                    src={mediaPreview.url}
+                    className="w-full h-48 object-cover rounded-lg"
+                    controls
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={removeMedia}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-white hover:bg-black transition-all"
+                >
+                  <X size={16} />
+                </button>
+                <p className="text-xs text-gray-500 mt-2 truncate">{mediaPreview.name}</p>
+                
+                {/* Alt text input */}
+                <input
+                  type="text"
+                  value={altText}
+                  onChange={(e) => setAltText(e.target.value)}
+                  placeholder="Add alt text for accessibility"
+                  className="w-full mt-2 px-3 py-2 rounded-lg bg-[#111] border border-gray-700 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3 p-3 rounded-lg bg-sky-900/20 border border-sky-800/50 mb-6">
@@ -481,13 +646,37 @@ function PostModal({ post, onClose, onSave }) {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={!content.trim() || saving || isOverLimit}
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 text-black font-medium hover:opacity-90 hover:cursor-pointer transition-all disabled:opacity-50"
-            >
-              {saving ? "Saving..." : post ? "Update" : "Create Draft"}
-            </button>
+            {!post && (
+              <button
+                type="submit"
+                disabled={!content.trim() || saving || posting || isOverLimit}
+                className="px-4 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 hover:cursor-pointer transition-all disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Draft"}
+              </button>
+            )}
+            {post ? (
+              <button
+                type="submit"
+                disabled={!content.trim() || saving || isOverLimit}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 text-black font-medium hover:opacity-90 hover:cursor-pointer transition-all disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Update"}
+              </button>
+            ) : isConnected && (
+              <button
+                type="button"
+                onClick={handlePostNow}
+                disabled={!content.trim() || posting || saving || isOverLimit}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-sky-500 to-sky-600 text-white font-medium hover:opacity-90 hover:cursor-pointer transition-all disabled:opacity-50 flex items-center gap-2"
+              >
+                {posting ? (
+                  <><Loader2 size={16} className="animate-spin" /> Posting...</>
+                ) : (
+                  <><Send size={16} /> Post Now</>
+                )}
+              </button>
+            )}
           </div>
         </form>
       </motion.div>

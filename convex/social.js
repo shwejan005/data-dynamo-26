@@ -10,6 +10,8 @@ export const createPost = mutation({
     campaignId: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
     scheduledFor: v.optional(v.string()),
+    hasMedia: v.optional(v.boolean()),
+    altText: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = new Date().toISOString();
@@ -19,6 +21,8 @@ export const createPost = mutation({
       campaignId: args.campaignId,
       imageUrl: args.imageUrl,
       scheduledFor: args.scheduledFor,
+      hasMedia: args.hasMedia,
+      altText: args.altText,
       status: "draft",
       createdAt: now,
       updatedAt: now,

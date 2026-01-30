@@ -136,6 +136,8 @@ export default defineSchema({
     campaignId: v.optional(v.string()),
     content: v.string(),
     imageUrl: v.optional(v.string()),
+    hasMedia: v.optional(v.boolean()),
+    altText: v.optional(v.string()),
     platform: v.string(),
     status: v.string(),
     scheduledFor: v.optional(v.string()),
