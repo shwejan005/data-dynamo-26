@@ -1,8 +1,8 @@
 
-import { Header } from "@/components/ui/Header";
+import { Header } from "@/components/ui/header";
 import { CTA } from "./_components/cta";
 import { Features } from "./_components/features";
-import { Hero } from "./_components/Hero";
+import { Hero } from "./_components/hero";
 import Videos from "./_components/videos";
 import { Workflow } from "./_components/workflow";
 

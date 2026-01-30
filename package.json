@@ -1,22 +1,37 @@
 {
-  "name": "data-dynamo-26",
+  "name": "gen",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
-    "next": "16.1.6",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "@atproto/api": "^0.18.18",
+    "@clerk/nextjs": "^6.34.0",
+    "@fal-ai/client": "^1.8.4",
+    "@google/genai": "^1.38.0",
+    "@google/generative-ai": "^0.24.1",
+    "@studio-freight/react-lenis": "^0.0.47",
+    "convex": "^1.28.0",
+    "framer-motion": "^12.29.2",
+    "lenis": "^1.3.11",
+    "lucide-react": "^0.548.0",
+    "next": "16.0.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-intersection-observer": "^10.0.0",
+    "svix": "^1.79.0",
+    "twitter-api-v2": "^1.29.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "babel-plugin-react-compiler": "1.0.0",
+    "baseline-browser-mapping": "^2.9.19",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.0.0",
     "tailwindcss": "^4"
   }
 }
