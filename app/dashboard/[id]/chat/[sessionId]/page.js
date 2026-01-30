@@ -48,7 +48,7 @@ export default function ChatSessionPage() {
 
       // Send to AI webhook with history
       const res = await fetch(
-        "https://voidflow.app.n8n.cloud/webhook/ad-bot-webhook",
+        "https://shwejan005.app.n8n.cloud/webhook-test/ad-bot-webhook",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
