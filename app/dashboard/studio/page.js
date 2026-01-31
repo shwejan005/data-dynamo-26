@@ -165,6 +165,13 @@ function StudioContent() {
   const [generatingScript, setGeneratingScript] = useState(false);
   const [editingScene, setEditingScene] = useState(null);
   
+  // Location & media generation state
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [generatingMedia, setGeneratingMedia] = useState(false);
+  const [generatedMedia, setGeneratedMedia] = useState(null); // { type: 'video' | 'image', url: string }
+  const [postingToBluesky, setPostingToBluesky] = useState(false);
+  const [videoGenerationMethod, setVideoGenerationMethod] = useState("api"); // 'api' | 'scraper'
+  
   // Character creation state
   const [newCharacter, setNewCharacter] = useState({ name: "", role: "", personality: "", emoji: "😊", avatar: null });
   const [isAddingCharacter, setIsAddingCharacter] = useState(false);
