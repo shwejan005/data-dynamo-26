@@ -12,6 +12,7 @@ export const createCampaign = mutation({
     brandName: v.string(),
     logo: v.optional(v.string()),
     brandColors: v.optional(v.array(v.string())),
+    duration: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -131,6 +132,7 @@ export const updateCampaign = mutation({
       duration: v.optional(v.number()),
     }))),
     finalVideoUrl: v.optional(v.string()),
+    duration: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
@@ -230,6 +232,7 @@ export const saveOnboarding = mutation({
     brandName: v.string(),
     logo: v.optional(v.string()),
     brandColors: v.optional(v.array(v.string())),
+    duration: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();

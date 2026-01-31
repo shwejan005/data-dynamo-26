@@ -30,6 +30,7 @@ export default function OnboardingPage() {
     logo: null,
     logoPreview: "",
     brandColors: [],
+    duration: 30, // Default duration
   })
 
   const handleLogoChange = (e) => {
@@ -86,6 +87,7 @@ export default function OnboardingPage() {
         brandName: formData.brandName,
         logo: logoStorageId || undefined,
         brandColors: formData.brandColors.length > 0 ? formData.brandColors : undefined,
+        duration: formData.duration,
       })
 
       router.push(`/dashboard/studio?campaign=${campaignId}`)
@@ -161,6 +163,29 @@ export default function OnboardingPage() {
                   <Upload size={24} className="text-gray-500" />
                 </label>
               )}
+            </div>
+
+            {/* Duration Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Target Duration <span className="text-orange-500">*</span>
+              </label>
+              <div className="flex gap-3">
+                {[15, 30, 60].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, duration: d }))}
+                    className={`flex-1 py-3 px-4 rounded-lg border font-medium transition-all ${
+                      formData.duration === d
+                        ? "bg-orange-500 text-black border-orange-500"
+                        : "bg-[#1a1a1a] text-gray-400 border-gray-700 hover:border-gray-500"
+                    }`}
+                  >
+                    {d}s
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Brand Colors */}

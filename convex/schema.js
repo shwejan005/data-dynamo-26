@@ -17,6 +17,7 @@ export default defineSchema({
     brandName: v.string(),
     logo: v.optional(v.string()),
     brandColors: v.optional(v.array(v.string())),
+    duration: v.optional(v.number()),
     // Studio Status
     status: v.optional(v.string()), // "draft", "in_progress", "completed"
     currentStep: v.optional(v.number()), // 1-9 for workflow steps

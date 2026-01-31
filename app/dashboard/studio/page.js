@@ -31,6 +31,7 @@ import {
   Edit3,
   Play,
   Share2,
+  Plus,
 } from "lucide-react";
 
 // Workflow steps
@@ -109,8 +110,12 @@ function CharacterCard({ character, index }) {
       className="bg-[#1a1a1a] border border-gray-800 rounded-xl p-3"
     >
       <div className="flex items-center gap-2 mb-2">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-sm font-bold text-black">
-          {character.name?.charAt(0) || "?"}
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-lg font-bold text-black border border-orange-400 overflow-hidden">
+          {character.avatar ? (
+            <img src={character.avatar} alt={character.name} className="w-full h-full object-cover" />
+          ) : (
+            character.emoji || character.name?.charAt(0) || "?"
+          )}
         </div>
         <div>
           <h4 className="font-medium text-white text-sm">{character.name}</h4>
@@ -160,11 +165,51 @@ function StudioContent() {
   const [generatingScript, setGeneratingScript] = useState(false);
   const [editingScene, setEditingScene] = useState(null);
   
-  // Location & media generation state
-  const [selectedLocation, setSelectedLocation] = useState(null);
-  const [generatingMedia, setGeneratingMedia] = useState(false);
-  const [generatedMedia, setGeneratedMedia] = useState(null); // { type: 'video' | 'image', url: string }
-  const [postingToBluesky, setPostingToBluesky] = useState(false);
+  // Character creation state
+  const [newCharacter, setNewCharacter] = useState({ name: "", role: "", personality: "", emoji: "😊", avatar: null });
+  const [isAddingCharacter, setIsAddingCharacter] = useState(false);
+  const [analyzingImage, setAnalyzingImage] = useState(false);
+  const fileInputRef = useRef(null);
+  const avatarInputRef = useRef(null);
+
+  // Helper to format chat messages with headers
+  function parseAndStyleMessage(content) {
+    if (!content) return null;
+    return content.split("\n").map((line, index) => {
+      if (line.startsWith("**") && line.endsWith("**")) {
+        return (
+          <h3 key={index} className="text-lg font-semibold mt-4 mb-2 text-orange-400">
+            {line.replace(/\*\*/g, "")}
+          </h3>
+        );
+      }
+      if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
+        return (
+          <div key={index} className="flex items-start gap-2 ml-4 mb-1">
+            <span className="text-orange-500 mt-1">•</span>
+            <span className="flex-1 text-gray-300">{parseBoldText(line.replace(/^[-*] /, ""))}</span>
+          </div>
+        );
+      }
+      return (
+        <p key={index} className="mb-2 text-gray-300">
+          {parseBoldText(line)}
+        </p>
+      );
+    });
+  }
+
+  function parseBoldText(text) {
+    return text.split(/(\*\*.+?\*\*)/g).map((part, i) =>
+      part.startsWith("**") && part.endsWith("**") ? (
+        <span key={i} className="font-semibold text-orange-200">
+          {part.slice(2, -2)}
+        </span>
+      ) : (
+        part
+      )
+    );
+  }
 
 
   
@@ -362,23 +407,15 @@ Pick the one that resonates with your target audience!`;
     try {
       await addUserMessage("Brand guidelines confirmed ✓");
       
-      // Pre-defined character profiles (since credits ran out for generation)
-      const defaultCharacters = [
-        { name: "Alex", role: "Protagonist", personality: "Confident and approachable", appearance: "Professional attire, friendly smile" },
-        { name: "Jordan", role: "Expert", personality: "Knowledgeable and trustworthy", appearance: "Smart casual, glasses" },
-        { name: "Sam", role: "Customer", personality: "Curious and relatable", appearance: "Casual everyday look" },
-        { name: "Taylor", role: "Narrator", personality: "Calm and authoritative", appearance: "Neutral, professional" },
-      ];
-      
-      setCharacters(defaultCharacters);
+      // Initialize with empty or minimal characters if none exist
+      // We are NOT setting defaults here anymore, user must create them
+      if (characters.length === 0) {
+        setCharacters([]);
+      }
       
       await updateCampaign({
         id: campaignId,
         currentStep: 4,
-        characters: defaultCharacters.map(c => ({
-          name: c.name,
-          description: `${c.role} - ${c.personality}. ${c.appearance}`,
-        })),
       });
       
       setActiveStep("characters");
@@ -386,19 +423,14 @@ Pick the one that resonates with your target audience!`;
       await addAssistantMessage(
         `✅ Brand confirmed!
 
-**Step 4: Characters**
+**Step 4: Create Characters**
 
-⚠️ *Character generation credits exhausted.* Using pre-defined profiles:
+⚠️ **Note:** Image generation credits are currently exhausted.
+Please use an **Emoji Avatar** for your characters instead.
 
-• **Alex** - Protagonist (will be used for all ads)
-• **Jordan** - Expert
-• **Sam** - Customer  
-• **Taylor** - Narrator
-
-For this project, **Alex** will be the main character in your video.`,
+Add the key characters for your video below:`,
         [
-          { action: "Brand guidelines saved", status: "completed" },
-          { action: "Loaded default characters", status: "completed" },
+          { action: "Brand guidelines saved", status: "completed" }
         ]
       );
     } catch (err) {
@@ -408,31 +440,97 @@ For this project, **Alex** will be the main character in your video.`,
     setLoading(false);
   };
 
-  // Step 4: Skip character generation (no longer needed)
-  const handleSkipCharacters = async () => {
+  // Handle "Generate from Image" (Mock Failure)
+  const handleGenerateFromImage = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAnalyzingImage(true);
+    
+    // Simulate processing delay
+    setTimeout(async () => {
+        setAnalyzingImage(false);
+        setError("Character generation credits exhausted.");
+        
+        await addAssistantMessage(
+            `⚠️ **Credits Exception**
+            
+I analyzed your image but could not generate the profiles because **your image generation credits are exhausted**.
+
+Please add your characters manually below. You can upload their avatars directly!`
+        );
+    }, 2000);
+  };
+
+  // Handle Avatar Upload for Manual Character
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files?.[0];
+      const url = URL.createObjectURL(file);
+      setNewCharacter({ ...newCharacter, avatar: url, emoji: null });
+  };
+
+  // Add Default Character
+  const handleAddDefaultCharacter = () => {
+    const defaultChar = {
+      name: "Alex",
+      role: "Host",
+      personality: "Friendly & Professional",
+      emoji: "👋",
+      avatar: null
+    };
+    setCharacters([...characters, defaultChar]);
+  };
+
+  // Step 4: Handle Character Creation
+  const handleAddCharacter = () => {
+    if (!newCharacter.name || !newCharacter.role) return;
+    setCharacters([...characters, newCharacter]);
+    setNewCharacter({ name: "", role: "", personality: "", emoji: "😊", avatar: null });
+    setIsAddingCharacter(false);
+  };
+  
+  const handleRemoveCharacter = (index) => {
+    const newChars = [...characters];
+    newChars.splice(index, 1);
+    setCharacters(newChars);
+  };
+
+  // Step 4: Continue after creating characters
+  const handleConfirmCharacters = async () => {
+    if (characters.length === 0) {
+       setError("Please add at least one character");
+       return;
+    }
+    
     setLoading(true);
     
-    await addUserMessage("Continue with default character");
+    await addUserMessage(`Created ${characters.length} characters`);
     
     await updateCampaign({
       id: campaignId,
       currentStep: 5,
+      characters: characters.map(c => ({
+        name: c.name,
+        description: `${c.role} - ${c.personality}. ${c.emoji || 'Image Avatar'}`,
+        referenceImage: c.avatar || c.emoji // Store avatar URL or emoji
+      })),
     });
     
     setActiveStep("script");
     
     await addAssistantMessage(
-      `✅ Using **Alex** as your main character!
-
+      `✅ Characters locked in!
+      
 **Step 5: Script Generation**
-I'll create a 5-scene script based on your content, style, and character.
+I'll create a 5-scene script based on your content, style, and these characters.
 
 Click **Generate Script** to begin!`,
-      [{ action: "Character selected", status: "completed" }]
+      [{ action: "Characters confirmed", status: "completed" }]
     );
     
     setLoading(false);
   };
+
 
   // Step 3: Go back to change style
   const handleChangeStyle = async () => {
@@ -634,18 +732,31 @@ Choose a background location for your video from the options below. Once selecte
     });
     
     try {
-      await addUserMessage(`Generate video with ${location.name} location`);
+      await addUserMessage(`Generate video with ${location.name} location using ${videoGenerationMethod === 'scraper' ? 'Web Scraper' : 'Standard API'}`);
       
-      // Try video generation first
-      const videoResponse = await fetch("/api/studio/generate-video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          imageUrl: location.image,
-          duration: 5,
-        }),
-      });
+      let videoResponse;
+      
+      if (videoGenerationMethod === 'scraper') {
+        // Use Luma Web Scraper
+         videoResponse = await fetch("/api/studio/generate-luma-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+          }),
+        });
+      } else {
+        // Use Standard API (Fal/Gemini)
+        videoResponse = await fetch("/api/studio/generate-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            imageUrl: location.image,
+            duration: 5,
+          }),
+        });
+      }
       
       if (videoResponse.ok) {
         const videoData = await videoResponse.json();
@@ -1119,7 +1230,10 @@ Your generated ${generatedMedia.type} has been shared successfully.
                               ))}
                             </div>
                           )}
-                          <div className="text-gray-200 whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+
+                          <div className="prose prose-invert max-w-none text-sm leading-relaxed">
+                            {parseAndStyleMessage(msg.content)}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1199,33 +1313,171 @@ Your generated ${generatedMedia.type} has been shared successfully.
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-4"
                 >
-                  {/* Show pre-defined character cards */}
+                  {/* Show character cards */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {characters.map((char, i) => (
                       <div 
                         key={i} 
-                        className={`p-3 rounded-xl border transition-all ${
-                          i === 0 
-                            ? "bg-orange-500/20 border-orange-500/50" 
-                            : "bg-gray-800/50 border-gray-700/50 opacity-60"
-                        }`}
+                        className="relative p-3 rounded-xl border border-gray-700 bg-gray-800/50 group"
                       >
-                        <div className="text-2xl mb-1">{i === 0 ? "⭐" : "👤"}</div>
-                        <p className="font-medium text-sm text-white">{char.name}</p>
-                        <p className="text-xs text-gray-400">{char.role}</p>
-                        {i === 0 && (
-                          <span className="inline-block mt-2 text-xs bg-orange-500/30 text-orange-300 px-2 py-0.5 rounded">
-                            Selected
-                          </span>
-                        )}
+                        <button 
+                          onClick={() => handleRemoveCharacter(i)}
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={12} className="text-white" />
+                        </button>
+                        <div className="text-3xl mb-1 text-center flex justify-center">
+                            {char.avatar ? (
+                                <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-600">
+                                    <img src={char.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                </div>
+                            ) : (
+                                char.emoji
+                            )}
+                        </div>
+                        <p className="font-medium text-sm text-white text-center">{char.name}</p>
+                        <p className="text-xs text-gray-400 text-center">{char.role}</p>
                       </div>
                     ))}
+                    
+                    {/* Add Character Button */}
+                    {!isAddingCharacter && (
+                      <button
+                        onClick={() => setIsAddingCharacter(true)}
+                        className="p-3 rounded-xl border border-dashed border-gray-700 hover:border-orange-500/50 hover:bg-orange-500/10 transition-all flex flex-col items-center justify-center gap-2 h-full min-h-[120px]"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center">
+                          <Plus size={16} />
+                        </div>
+                        <span className="text-xs text-gray-400">Add Manual</span>
+                      </button>
+                    )}
+
+                    {/* Add Default Character Button */}
+                    <button
+                        onClick={handleAddDefaultCharacter}
+                        className="p-3 rounded-xl border border-dashed border-gray-700 hover:border-green-500/50 hover:bg-green-500/10 transition-all flex flex-col items-center justify-center gap-2 h-full min-h-[120px]"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center">
+                          <Plus size={16} className="text-green-500" />
+                        </div>
+                        <span className="text-xs text-gray-400 text-center">Add Default</span>
+                    </button>
+
+                    {/* Generate from Image Button */}
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={analyzingImage}
+                        className="p-3 rounded-xl border border-dashed border-gray-700 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all flex flex-col items-center justify-center gap-2 h-full min-h-[120px]"
+                      >
+                         {analyzingImage ? (
+                           <Loader2 size={24} className="animate-spin text-purple-500" />
+                         ) : (
+                           <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center">
+                             <Sparkles size={16} className="text-purple-500" />
+                           </div>
+                         )}
+                        <span className="text-xs text-gray-400 text-center">
+                          {analyzingImage ? "Analyzing..." : "Generate from Image"}
+                        </span>
+                    </button>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleGenerateFromImage}
+                    />
                   </div>
+
+                  {/* Add Character Form */}
+                  {isAddingCharacter && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-[#1a1a1a] border border-gray-800 rounded-xl p-4 space-y-3"
+                    >
+                      <h4 className="text-sm font-medium text-white mb-2">New Character</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Name (e.g. Alex)"
+                          value={newCharacter.name}
+                          onChange={(e) => setNewCharacter({...newCharacter, name: e.target.value})}
+                          className="bg-black/50 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 outline-none"
+                        />
+                         <input
+                          type="text"
+                          placeholder="Role (e.g. Narrator)"
+                          value={newCharacter.role}
+                          onChange={(e) => setNewCharacter({...newCharacter, role: e.target.value})}
+                          className="bg-black/50 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 outline-none"
+                        />
+                      </div>
+                      <div className="grid grid-cols-[1fr_auto] gap-3">
+                        <input
+                          type="text"
+                          placeholder="Personality (e.g. Friendly, Professional)"
+                          value={newCharacter.personality}
+                          onChange={(e) => setNewCharacter({...newCharacter, personality: e.target.value})}
+                          className="bg-black/50 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 outline-none"
+                        />
+                         <div className="flex flex-col gap-1 items-center">
+                            <label className="text-[10px] text-gray-500 uppercase">Avatar</label>
+                             <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={newCharacter.emoji || ''}
+                                  placeholder="Emoji"
+                                  onChange={(e) => setNewCharacter({...newCharacter, emoji: e.target.value, avatar: null})}
+                                  className="w-12 h-9 bg-black/50 border border-gray-700 rounded-lg text-center text-lg focus:border-orange-500 outline-none"
+                                />
+                                <button 
+                                    onClick={() => avatarInputRef.current?.click()}
+                                    className="w-9 h-9 border border-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-800"
+                                >
+                                    {newCharacter.avatar ? (
+                                        <img src={newCharacter.avatar} className="w-full h-full object-cover rounded-lg" />
+                                    ) : (
+                                        <Image size={14} className="text-gray-400" />
+                                    )}
+                                </button>
+                                <input 
+                                    type="file" 
+                                    className="hidden" 
+                                    ref={avatarInputRef} 
+                                    accept="image/*" 
+                                    onChange={handleAvatarUpload} 
+                                />
+                             </div>
+                         </div>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button
+                          onClick={() => setIsAddingCharacter(false)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleAddCharacter}
+                          disabled={!newCharacter.name || !newCharacter.role}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-orange-500 text-black hover:bg-orange-400 disabled:opacity-50"
+                        >
+                          Add Character
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
                   
                   {/* Continue button */}
-                  <div className="flex justify-center">
-                    <ActionButton onClick={handleSkipCharacters} icon={ArrowRight}>
-                      Continue with Alex
+                  <div className="flex justify-center pt-2">
+                    <ActionButton 
+                      onClick={handleConfirmCharacters} 
+                      icon={Check}
+                      disabled={characters.length === 0}
+                    >
+                      Confirm {characters.length} Characters
                     </ActionButton>
                   </div>
                 </motion.div>
@@ -1339,7 +1591,7 @@ Your generated ${generatedMedia.type} has been shared successfully.
                 >
                   {/* Location Grid */}
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-400 mb-3">Select a Location</h3>
+                    <h3 className="text-sm font-semibold text-gray-400 mb-3">1. Select a Location</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {LOCATION_ASSETS.map((location) => (
                         <button
@@ -1367,6 +1619,46 @@ Your generated ${generatedMedia.type} has been shared successfully.
                           )}
                         </button>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Generation Method Toggle */}
+                  <div className="p-4 bg-[#1a1a1a] rounded-xl border border-gray-800">
+                    <h3 className="text-sm font-semibold text-gray-400 mb-3">2. Generation Method</h3>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${videoGenerationMethod === 'api' ? 'border-orange-500' : 'border-gray-600'}`}>
+                          {videoGenerationMethod === 'api' && <div className="w-3 h-3 rounded-full bg-orange-500" />}
+                        </div>
+                        <input 
+                          type="radio" 
+                          name="genMethod" 
+                          className="hidden" 
+                          checked={videoGenerationMethod === 'api'}
+                          onChange={() => setVideoGenerationMethod('api')} 
+                        />
+                        <div className="text-sm">
+                          <div className="text-white font-medium">Standard API</div>
+                          <div className="text-xs text-gray-500">Fal AI / Gemini</div>
+                        </div>
+                      </label>
+                      
+                       <label className="flex items-center gap-3 cursor-pointer">
+                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${videoGenerationMethod === 'scraper' ? 'border-orange-500' : 'border-gray-600'}`}>
+                          {videoGenerationMethod === 'scraper' && <div className="w-3 h-3 rounded-full bg-orange-500" />}
+                        </div>
+                        <input 
+                          type="radio" 
+                          name="genMethod" 
+                          className="hidden" 
+                          checked={videoGenerationMethod === 'scraper'}
+                          onChange={() => setVideoGenerationMethod('scraper')} 
+                        />
+                         <div className="text-sm">
+                          <div className="text-white font-medium">Web Scraper</div>
+                          <div className="text-xs text-gray-500">Grok / Luma (Experimental)</div>
+                        </div>
+                      </label>
                     </div>
                   </div>
 
@@ -1421,6 +1713,9 @@ Your generated ${generatedMedia.type} has been shared successfully.
                       )}
                       <div className="p-4 flex items-center justify-between">
                         <div>
+                          <div className="prose prose-invert max-w-none text-sm leading-relaxed">
+                            {parseAndStyleMessage(msg.content)}
+                          </div>
                           <p className="text-sm font-medium text-white">
                             {generatedMedia.type === "video" ? "🎬 Video Generated" : "🖼️ Image Generated"}
                           </p>
