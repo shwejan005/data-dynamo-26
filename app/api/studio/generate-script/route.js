@@ -5,7 +5,24 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function POST(request) {
   try {
-    const { content, style, characters, brandName } = await request.json();
+    console.log("🚀 Script generation started");
+    
+    if (!process.env.GEMINI_API_KEY) {
+      console.error("❌ GEMINI_API_KEY is missing in environment variables");
+      return NextResponse.json(
+        { error: "Server configuration error: API key missing" },
+        { status: 500 }
+      );
+    }
+    
+    const body = await request.json();
+    console.log("📦 Request body received:", { 
+      contentLength: body.content?.length, 
+      style: body.style,
+      charactersCount: body.characters?.length 
+    });
+
+    const { content, style, characters, brandName } = body;
 
     if (!content) {
       return NextResponse.json(
@@ -65,9 +82,12 @@ Respond ONLY with valid JSON in this format:
   ]
 }`;
 
+    console.log("🤖 Sending prompt to Gemini...");
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
+    console.log("✅ Gemini response received. Length:", text.length);
+    console.log("📝 Raw response start:", text.substring(0, 100));
 
     // Parse JSON from response
     let scriptData;
@@ -83,7 +103,8 @@ Respond ONLY with valid JSON in this format:
         if (objectMatch) {
           scriptData = JSON.parse(objectMatch[0]);
         } else {
-          throw new Error("Could not parse script data");
+          console.error("❌ JSON parse failed. Raw text:", text);
+          throw new Error("Could not parse script data from response");
         }
       }
     }
@@ -93,7 +114,7 @@ Respond ONLY with valid JSON in this format:
       script: scriptData,
     });
   } catch (error) {
-    console.error("Script generation error:", error);
+    console.error("❌ Script generation error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to generate script" },
       { status: 500 }

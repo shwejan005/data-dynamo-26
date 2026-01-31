@@ -192,7 +192,14 @@ function StudioContent() {
       if (campaign.pdfContent) setTextContent(campaign.pdfContent);
       if (campaign.visualStyle) setSelectedStyle(campaign.visualStyle);
       if (campaign.characters) setCharacters(campaign.characters);
-      if (campaign.script) setScript(campaign.script);
+      if (campaign.script) {
+        try {
+          const parsed = typeof campaign.script === 'string' ? JSON.parse(campaign.script) : campaign.script;
+          setScript(parsed);
+        } catch (e) {
+          console.error("Failed to parse script:", e);
+        }
+      }
     }
   }, [campaign]);
 
